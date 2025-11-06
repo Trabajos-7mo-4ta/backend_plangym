@@ -42,3 +42,34 @@ export const loginUser = async (req, res) => {
   }
 };
 
+export const loginWithGoogle = async (req, res) => {
+  try {
+    const { nombre, email, googleId } = req.body;
+
+    const result = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
+
+    let user;
+    if (result.rows.length === 0) {
+      const insert = await pool.query(
+        'INSERT INTO users (nombre, email, password, rol) VALUES ($1, $2, $3, $4) RETURNING *',
+        [nombre, email, googleId, 'user']
+      );
+      user = insert.rows[0];
+    } else {
+      user = result.rows[0];
+    }
+
+    const token = jwt.sign(
+      { id: user.id, rol: user.rol },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    res.json({ token, user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error en login con Google' });
+  }
+};
+
+
